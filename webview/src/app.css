@@ -1,0 +1,39 @@
+:global(body) {
+    font-family: var(--vscode-font-family);
+    color: var(--vscode-foreground);
+    background: var(--vscode-editor-background);
+    margin: 0;
+    padding: 16px;
+    line-height: 1.5;
+}
+
+main {
+    max-width: 900px;
+}
+
+.header {
+    margin-bottom: 16px;
+}
+
+h1 {
+    font-size: 1.3em;
+    margin: 0 0 4px;
+}
+
+.subtitle {
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.9em;
+}
+
+.loading {
+    color: var(--vscode-descriptionForeground);
+    padding: 40px 0;
+}
+
+.error h2 {
+    margin: 0 0 8px;
+}
+
+.error p {
+    color: var(--vscode-errorForeground);
+}

@@ -1,7 +1,21 @@
 const esbuild = require("esbuild");
+const { existsSync } = require("fs");
+const path = require("path");
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
+
+const wasmCopyPlugin = {
+	name: 'wasm-copy',
+	setup(build) {
+		build.onEnd(() => {
+			const src = path.join(__dirname, 'dist', 'wasm');
+			if (!existsSync(path.join(src, 'engine.wasm'))) {
+				console.warn('⚠ WASM engine not found in dist/wasm/. Run `npm run build:wasm` first.');
+			}
+		});
+	},
+};
 
 /**
  * @type {import('esbuild').Plugin}
@@ -38,7 +52,7 @@ async function main() {
 		external: ['vscode'],
 		logLevel: 'silent',
 		plugins: [
-			/* add to the end of plugins array */
+			wasmCopyPlugin,
 			esbuildProblemMatcherPlugin,
 		],
 	});
