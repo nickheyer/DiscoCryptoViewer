@@ -1,4 +1,4 @@
-.PHONY: build build-wasm build-webview build-ext proto proto-clean proto-lint proto-format gen deps clean help
+.PHONY: build build-wasm build-webview build-ext proto proto-clean proto-lint proto-format gen deps clean help pub pack
 
 WEBVIEW_DIR := webview
 BUF_IMAGE := bufbuild/buf:latest
@@ -8,6 +8,12 @@ BUF_RUN := docker run --rm \
 	--user "$(shell id -u):$(shell id -g)" \
 	--env HOME=/tmp \
 	$(BUF_IMAGE)
+
+pub:
+	vsce publish
+
+pack:
+	vsce package
 
 # Full build: proto -> wasm -> webview -> extension
 build: gen build-wasm build-webview build-ext

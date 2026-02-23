@@ -2,7 +2,13 @@
   "name": "disco-crypto-viewer",
   "displayName": "Disco Crypto Viewer",
   "description": "View and inspect cryptographic files (X.509 certs, PKCS#12, CSRs, keys) directly in VS Code",
-  "version": "0.0.1",
+  "publisher": "NicholasHeyer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nickheyer/DiscoCryptoViewer.git"
+  },
+  "icon": "DiscoCryptoIcon.png",
+  "version": "0.0.2",
   "license": "MIT",
   "engines": {
     "vscode": "^1.106.0"
