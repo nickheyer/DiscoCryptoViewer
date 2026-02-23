@@ -1,0 +1,298 @@
+syntax = "proto3";
+
+package discocrypto.v1;
+
+option go_package = "github.com/nickheyer/discocryptoviewer/pkg/proto/discocrypto/v1;discocryptov1";
+
+import "google/protobuf/timestamp.proto";
+
+// ObjectIdentifier represents an ASN.1 OID as a dot-notation string (e.g. "2.5.4.3").
+message ObjectIdentifier {
+  string dot_notation = 1;
+}
+
+// BigInt represents an arbitrary-precision integer as raw big-endian bytes.
+message BigInt {
+  bytes value = 1;
+}
+
+// BitString represents an ASN.1 BIT STRING.
+message BitString {
+  bytes bytes = 1;
+  int32 bit_length = 2;
+}
+
+// RawBytes wraps arbitrary binary content alongside its detected encoding.
+message RawBytes {
+  bytes data = 1;
+  Encoding encoding = 2;
+}
+
+// Fingerprints holds common hash digests of a DER-encoded object.
+message Fingerprints {
+  bytes sha256 = 1;
+  bytes sha1 = 2;
+  bytes md5 = 3;
+}
+
+// Validity represents a not-before / not-after time window.
+message Validity {
+  google.protobuf.Timestamp not_before = 1;
+  google.protobuf.Timestamp not_after = 2;
+}
+
+// DistinguishedName mirrors x509/pkix.Name with all RDN fields.
+message DistinguishedName {
+  repeated string country = 1;
+  repeated string organization = 2;
+  repeated string organizational_unit = 3;
+  repeated string locality = 4;
+  repeated string province = 5;
+  repeated string street_address = 6;
+  repeated string postal_code = 7;
+  string common_name = 8;
+  string serial_number = 9;
+  repeated AttributeTypeAndValue extra_names = 10;
+}
+
+// AttributeTypeAndValue is a single RDN attribute.
+message AttributeTypeAndValue {
+  ObjectIdentifier type = 1;
+  string value = 2;
+}
+
+// Extension represents a single X.509v3 or similar extension.
+message Extension {
+  ObjectIdentifier id = 1;
+  bool critical = 2;
+  bytes value = 3;
+}
+
+// GeneralName covers all ASN.1 GeneralName types used in SANs, etc.
+message GeneralName {
+  oneof name {
+    string dns_name = 1;
+    string email = 2;
+    string uri = 3;
+    bytes ip_address = 4;
+    ObjectIdentifier registered_id = 5;
+    DirectoryName directory_name = 6;
+    OtherName other_name = 7;
+  }
+}
+
+// DirectoryName wraps a DistinguishedName inside GeneralName.
+message DirectoryName {
+  DistinguishedName dn = 1;
+}
+
+// OtherName represents GeneralName type 0 (otherName).
+message OtherName {
+  ObjectIdentifier type_id = 1;
+  bytes value = 2;
+}
+
+// IPNetwork represents a CIDR range (for name constraints).
+message IPNetwork {
+  bytes ip = 1;
+  bytes mask = 2;
+}
+
+// AlgorithmIdentifier mirrors the ASN.1 AlgorithmIdentifier.
+message AlgorithmIdentifier {
+  ObjectIdentifier algorithm = 1;
+  bytes parameters = 2;
+}
+
+// SubjectPublicKeyInfo wraps a public key with its algorithm.
+message SubjectPublicKeyInfo {
+  AlgorithmIdentifier algorithm = 1;
+  BitString public_key = 2;
+}
+
+// -------------------------------------------------------------------
+// Enumerations – buf STANDARD requires ENUM_NAME prefix + UNSPECIFIED=0
+// -------------------------------------------------------------------
+
+// Encoding identifies the serialization format of raw bytes.
+enum Encoding {
+  ENCODING_UNSPECIFIED = 0;
+  ENCODING_PEM = 1;
+  ENCODING_DER = 2;
+  ENCODING_OPENSSH = 3;
+  ENCODING_SSH2 = 4;
+  ENCODING_JSON = 5;
+  ENCODING_PKCS12 = 6;
+  ENCODING_PKCS7 = 7;
+  ENCODING_PGP_ASCII_ARMOR = 8;
+  ENCODING_PGP_BINARY = 9;
+  ENCODING_JWK = 10;
+  ENCODING_PUTTY = 11;
+}
+
+// CryptoObjectType enumerates every crypto object class the viewer supports.
+enum CryptoObjectType {
+  CRYPTO_OBJECT_TYPE_UNSPECIFIED = 0;
+  CRYPTO_OBJECT_TYPE_CERTIFICATE = 1;
+  CRYPTO_OBJECT_TYPE_CERTIFICATE_REQUEST = 2;
+  CRYPTO_OBJECT_TYPE_CERTIFICATE_REVOCATION_LIST = 3;
+  CRYPTO_OBJECT_TYPE_RSA_PUBLIC_KEY = 4;
+  CRYPTO_OBJECT_TYPE_RSA_PRIVATE_KEY = 5;
+  CRYPTO_OBJECT_TYPE_EC_PUBLIC_KEY = 6;
+  CRYPTO_OBJECT_TYPE_EC_PRIVATE_KEY = 7;
+  CRYPTO_OBJECT_TYPE_ED25519_PUBLIC_KEY = 8;
+  CRYPTO_OBJECT_TYPE_ED25519_PRIVATE_KEY = 9;
+  CRYPTO_OBJECT_TYPE_DSA_PUBLIC_KEY = 10;
+  CRYPTO_OBJECT_TYPE_DSA_PRIVATE_KEY = 11;
+  CRYPTO_OBJECT_TYPE_DH_PARAMETERS = 12;
+  CRYPTO_OBJECT_TYPE_ECDH_PUBLIC_KEY = 13;
+  CRYPTO_OBJECT_TYPE_ECDH_PRIVATE_KEY = 14;
+  CRYPTO_OBJECT_TYPE_PKCS7 = 15;
+  CRYPTO_OBJECT_TYPE_PKCS8_PRIVATE_KEY = 16;
+  CRYPTO_OBJECT_TYPE_PKCS8_ENCRYPTED_PRIVATE_KEY = 17;
+  CRYPTO_OBJECT_TYPE_PKCS12 = 18;
+  CRYPTO_OBJECT_TYPE_PEM = 19;
+  CRYPTO_OBJECT_TYPE_SSH_PUBLIC_KEY = 20;
+  CRYPTO_OBJECT_TYPE_SSH_PRIVATE_KEY = 21;
+  CRYPTO_OBJECT_TYPE_SSH_CERTIFICATE = 22;
+  CRYPTO_OBJECT_TYPE_PGP_PUBLIC_KEY = 23;
+  CRYPTO_OBJECT_TYPE_PGP_PRIVATE_KEY = 24;
+  CRYPTO_OBJECT_TYPE_PGP_SIGNATURE = 25;
+  CRYPTO_OBJECT_TYPE_JWK = 26;
+  CRYPTO_OBJECT_TYPE_JWKS = 27;
+  CRYPTO_OBJECT_TYPE_JWT = 28;
+  CRYPTO_OBJECT_TYPE_JWS = 29;
+  CRYPTO_OBJECT_TYPE_JWE = 30;
+  CRYPTO_OBJECT_TYPE_OCSP_REQUEST = 31;
+  CRYPTO_OBJECT_TYPE_OCSP_RESPONSE = 32;
+  CRYPTO_OBJECT_TYPE_SCT = 33;
+  CRYPTO_OBJECT_TYPE_CMS_SIGNED_DATA = 34;
+  CRYPTO_OBJECT_TYPE_CMS_ENVELOPED_DATA = 35;
+  CRYPTO_OBJECT_TYPE_X509_ATTRIBUTE_CERTIFICATE = 36;
+  CRYPTO_OBJECT_TYPE_TIMESTAMP_RESPONSE = 37;
+}
+
+// SignatureAlgorithm mirrors Go's x509.SignatureAlgorithm.
+enum SignatureAlgorithm {
+  SIGNATURE_ALGORITHM_UNSPECIFIED = 0;
+  SIGNATURE_ALGORITHM_MD2_WITH_RSA = 1;
+  SIGNATURE_ALGORITHM_MD5_WITH_RSA = 2;
+  SIGNATURE_ALGORITHM_SHA1_WITH_RSA = 3;
+  SIGNATURE_ALGORITHM_SHA256_WITH_RSA = 4;
+  SIGNATURE_ALGORITHM_SHA384_WITH_RSA = 5;
+  SIGNATURE_ALGORITHM_SHA512_WITH_RSA = 6;
+  SIGNATURE_ALGORITHM_DSA_WITH_SHA1 = 7;
+  SIGNATURE_ALGORITHM_DSA_WITH_SHA256 = 8;
+  SIGNATURE_ALGORITHM_ECDSA_WITH_SHA1 = 9;
+  SIGNATURE_ALGORITHM_ECDSA_WITH_SHA256 = 10;
+  SIGNATURE_ALGORITHM_ECDSA_WITH_SHA384 = 11;
+  SIGNATURE_ALGORITHM_ECDSA_WITH_SHA512 = 12;
+  SIGNATURE_ALGORITHM_ED25519 = 13;
+  SIGNATURE_ALGORITHM_SHA256_WITH_RSA_PSS = 14;
+  SIGNATURE_ALGORITHM_SHA384_WITH_RSA_PSS = 15;
+  SIGNATURE_ALGORITHM_SHA512_WITH_RSA_PSS = 16;
+}
+
+// PublicKeyAlgorithm mirrors Go's x509.PublicKeyAlgorithm.
+enum PublicKeyAlgorithm {
+  PUBLIC_KEY_ALGORITHM_UNSPECIFIED = 0;
+  PUBLIC_KEY_ALGORITHM_RSA = 1;
+  PUBLIC_KEY_ALGORITHM_DSA = 2;
+  PUBLIC_KEY_ALGORITHM_ECDSA = 3;
+  PUBLIC_KEY_ALGORITHM_ED25519 = 4;
+}
+
+// KeyUsage mirrors Go's x509.KeyUsage as individual enum values.
+enum KeyUsage {
+  KEY_USAGE_UNSPECIFIED = 0;
+  KEY_USAGE_DIGITAL_SIGNATURE = 1;
+  KEY_USAGE_CONTENT_COMMITMENT = 2;
+  KEY_USAGE_KEY_ENCIPHERMENT = 3;
+  KEY_USAGE_DATA_ENCIPHERMENT = 4;
+  KEY_USAGE_KEY_AGREEMENT = 5;
+  KEY_USAGE_CERT_SIGN = 6;
+  KEY_USAGE_CRL_SIGN = 7;
+  KEY_USAGE_ENCIPHER_ONLY = 8;
+  KEY_USAGE_DECIPHER_ONLY = 9;
+}
+
+// ExtKeyUsage mirrors Go's x509.ExtKeyUsage.
+enum ExtKeyUsage {
+  EXT_KEY_USAGE_UNSPECIFIED = 0;
+  EXT_KEY_USAGE_ANY = 1;
+  EXT_KEY_USAGE_SERVER_AUTH = 2;
+  EXT_KEY_USAGE_CLIENT_AUTH = 3;
+  EXT_KEY_USAGE_CODE_SIGNING = 4;
+  EXT_KEY_USAGE_EMAIL_PROTECTION = 5;
+  EXT_KEY_USAGE_IPSEC_END_SYSTEM = 6;
+  EXT_KEY_USAGE_IPSEC_TUNNEL = 7;
+  EXT_KEY_USAGE_IPSEC_USER = 8;
+  EXT_KEY_USAGE_TIME_STAMPING = 9;
+  EXT_KEY_USAGE_OCSP_SIGNING = 10;
+  EXT_KEY_USAGE_MICROSOFT_SERVER_GATED_CRYPTO = 11;
+  EXT_KEY_USAGE_NETSCAPE_SERVER_GATED_CRYPTO = 12;
+  EXT_KEY_USAGE_MICROSOFT_COMMERCIAL_CODE_SIGNING = 13;
+  EXT_KEY_USAGE_MICROSOFT_KERNEL_CODE_SIGNING = 14;
+}
+
+// NamedCurve identifies an elliptic curve by name.
+enum NamedCurve {
+  NAMED_CURVE_UNSPECIFIED = 0;
+  NAMED_CURVE_P224 = 1;
+  NAMED_CURVE_P256 = 2;
+  NAMED_CURVE_P384 = 3;
+  NAMED_CURVE_P521 = 4;
+  NAMED_CURVE_X25519 = 5;
+  NAMED_CURVE_SECP256K1 = 6;
+  NAMED_CURVE_BRAINPOOL_P256R1 = 7;
+  NAMED_CURVE_BRAINPOOL_P384R1 = 8;
+  NAMED_CURVE_BRAINPOOL_P512R1 = 9;
+  NAMED_CURVE_ED25519 = 10;
+  NAMED_CURVE_ED448 = 11;
+  NAMED_CURVE_X448 = 12;
+}
+
+// HashAlgorithm mirrors Go's crypto.Hash.
+enum HashAlgorithm {
+  HASH_ALGORITHM_UNSPECIFIED = 0;
+  HASH_ALGORITHM_MD4 = 1;
+  HASH_ALGORITHM_MD5 = 2;
+  HASH_ALGORITHM_SHA1 = 3;
+  HASH_ALGORITHM_SHA224 = 4;
+  HASH_ALGORITHM_SHA256 = 5;
+  HASH_ALGORITHM_SHA384 = 6;
+  HASH_ALGORITHM_SHA512 = 7;
+  HASH_ALGORITHM_SHA512_224 = 8;
+  HASH_ALGORITHM_SHA512_256 = 9;
+  HASH_ALGORITHM_SHA3_224 = 10;
+  HASH_ALGORITHM_SHA3_256 = 11;
+  HASH_ALGORITHM_SHA3_384 = 12;
+  HASH_ALGORITHM_SHA3_512 = 13;
+  HASH_ALGORITHM_BLAKE2S_256 = 14;
+  HASH_ALGORITHM_BLAKE2B_256 = 15;
+  HASH_ALGORITHM_BLAKE2B_384 = 16;
+  HASH_ALGORITHM_BLAKE2B_512 = 17;
+  HASH_ALGORITHM_RIPEMD160 = 18;
+}
+
+// PemType identifies a PEM block type string.
+enum PemType {
+  PEM_TYPE_UNSPECIFIED = 0;
+  PEM_TYPE_CERTIFICATE = 1;
+  PEM_TYPE_CERTIFICATE_REQUEST = 2;
+  PEM_TYPE_X509_CRL = 3;
+  PEM_TYPE_RSA_PRIVATE_KEY = 4;
+  PEM_TYPE_RSA_PUBLIC_KEY = 5;
+  PEM_TYPE_EC_PRIVATE_KEY = 6;
+  PEM_TYPE_EC_PUBLIC_KEY = 7;
+  PEM_TYPE_PRIVATE_KEY = 8;
+  PEM_TYPE_PUBLIC_KEY = 9;
+  PEM_TYPE_ENCRYPTED_PRIVATE_KEY = 10;
+  PEM_TYPE_OPENSSH_PRIVATE_KEY = 11;
+  PEM_TYPE_DSA_PRIVATE_KEY = 12;
+  PEM_TYPE_DSA_PUBLIC_KEY = 13;
+  PEM_TYPE_DH_PARAMETERS = 14;
+  PEM_TYPE_PKCS7 = 15;
+  PEM_TYPE_CMS = 16;
+  PEM_TYPE_ATTRIBUTE_CERTIFICATE = 17;
+}

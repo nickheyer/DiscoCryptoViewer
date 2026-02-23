@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { initWasmEngine } from './wasmLoader';
-import { CryptoFileEditorProvider } from './cryptoEditorProvider';
+import { CryptoEditorProvider } from './editor';
+import { CryptoServer } from './server';
 
 export async function activate(context: vscode.ExtensionContext) {
 	console.log('Disco Crypto Viewer: activating...');
@@ -13,7 +14,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		return;
 	}
 
-	context.subscriptions.push(CryptoFileEditorProvider.register(context));
+	const server = new CryptoServer();
+	context.subscriptions.push(CryptoEditorProvider.register(context, server));
 }
 
 export function deactivate() {}

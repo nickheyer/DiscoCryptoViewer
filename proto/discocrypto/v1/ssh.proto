@@ -1,0 +1,187 @@
+syntax = "proto3";
+
+package discocrypto.v1;
+
+option go_package = "github.com/nickheyer/discocryptoviewer/pkg/proto/discocrypto/v1;discocryptov1";
+
+import "discocrypto/v1/common.proto";
+import "discocrypto/v1/keys.proto";
+import "google/protobuf/timestamp.proto";
+
+// ---------------------------------------------------------------------------
+// SSH Keys – parity with golang.org/x/crypto/ssh
+// ---------------------------------------------------------------------------
+
+// SSHPublicKey represents an SSH public key in any format.
+message SSHPublicKey {
+  // Key type string (e.g. "ssh-rsa", "ssh-ed25519", "ecdsa-sha2-nistp256").
+  string key_type = 1;
+
+  // The underlying cryptographic public key.
+  PublicKey public_key = 2;
+
+  // Comment (from authorized_keys or key file).
+  string comment = 3;
+
+  // SHA-256 fingerprint in the "SHA256:..." format used by ssh-keygen.
+  string fingerprint_sha256 = 4;
+
+  // MD5 fingerprint in colon-hex format.
+  string fingerprint_md5 = 5;
+
+  // Raw wire-format bytes.
+  bytes raw = 6;
+}
+
+// SSHPrivateKey represents an SSH private key (OpenSSH format).
+message SSHPrivateKey {
+  // Key type string.
+  string key_type = 1;
+
+  // The underlying cryptographic private key.
+  PrivateKey private_key = 2;
+
+  // The corresponding public key.
+  SSHPublicKey public_key = 3;
+
+  // Comment embedded in the key file.
+  string comment = 4;
+
+  // Cipher used for encryption (e.g. "aes256-ctr", "none").
+  string cipher_name = 5;
+
+  // KDF name (e.g. "bcrypt", "none").
+  string kdf_name = 6;
+
+  // Whether the key is encrypted.
+  bool encrypted = 7;
+}
+
+// ---------------------------------------------------------------------------
+// SSH Certificates – parity with ssh.Certificate
+// ---------------------------------------------------------------------------
+
+message SSHCertificate {
+  // Certificate type.
+  SSHCertType cert_type = 1;
+
+  // Serial number.
+  uint64 serial = 2;
+
+  // Key ID.
+  string key_id = 3;
+
+  // The public key being certified.
+  SSHPublicKey key = 4;
+
+  // Signing CA public key.
+  SSHPublicKey signature_key = 5;
+
+  // Validity window.
+  google.protobuf.Timestamp valid_after = 6;
+  google.protobuf.Timestamp valid_before = 7;
+
+  // Principals (hostnames or usernames).
+  repeated string valid_principals = 8;
+
+  // Critical options (force-command, source-address, etc.).
+  map<string, string> critical_options = 9;
+
+  // Extensions (permit-pty, permit-agent-forwarding, etc.).
+  map<string, string> extensions = 10;
+
+  // Nonce.
+  bytes nonce = 11;
+
+  // Signature bytes.
+  bytes signature = 12;
+
+  // Raw wire-format bytes.
+  bytes raw = 13;
+}
+
+enum SSHCertType {
+  SSH_CERT_TYPE_UNSPECIFIED = 0;
+  SSH_CERT_TYPE_USER = 1;
+  SSH_CERT_TYPE_HOST = 2;
+}
+
+// ---------------------------------------------------------------------------
+// SSH Known Hosts / Authorized Keys
+// ---------------------------------------------------------------------------
+
+message SSHAuthorizedKey {
+  SSHPublicKey key = 1;
+  string comment = 2;
+  repeated string options = 3;
+}
+
+message SSHKnownHost {
+  repeated string hostnames = 1;
+  SSHPublicKey key = 2;
+  bool is_hashed = 3;
+  string marker = 4;
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service SSHService {
+  // Parse an SSH public key (authorized_keys format, SSH2, or OpenSSH).
+  rpc ParseSSHPublicKey(ParseSSHPublicKeyRequest) returns (ParseSSHPublicKeyResponse);
+
+  // Parse an SSH private key (OpenSSH format).
+  rpc ParseSSHPrivateKey(ParseSSHPrivateKeyRequest) returns (ParseSSHPrivateKeyResponse);
+
+  // Parse an SSH certificate.
+  rpc ParseSSHCertificate(ParseSSHCertificateRequest) returns (ParseSSHCertificateResponse);
+
+  // Parse an authorized_keys file.
+  rpc ParseAuthorizedKeys(ParseAuthorizedKeysRequest) returns (ParseAuthorizedKeysResponse);
+
+  // Parse a known_hosts file.
+  rpc ParseKnownHosts(ParseKnownHostsRequest) returns (ParseKnownHostsResponse);
+}
+
+message ParseSSHPublicKeyRequest {
+  bytes data = 1;
+}
+
+message ParseSSHPublicKeyResponse {
+  SSHPublicKey public_key = 1;
+  Encoding detected_encoding = 2;
+}
+
+message ParseSSHPrivateKeyRequest {
+  bytes data = 1;
+  string passphrase = 2;
+}
+
+message ParseSSHPrivateKeyResponse {
+  SSHPrivateKey private_key = 1;
+}
+
+message ParseSSHCertificateRequest {
+  bytes data = 1;
+}
+
+message ParseSSHCertificateResponse {
+  SSHCertificate certificate = 1;
+}
+
+message ParseAuthorizedKeysRequest {
+  bytes data = 1;
+}
+
+message ParseAuthorizedKeysResponse {
+  repeated SSHAuthorizedKey keys = 1;
+}
+
+message ParseKnownHostsRequest {
+  bytes data = 1;
+}
+
+message ParseKnownHostsResponse {
+  repeated SSHKnownHost hosts = 1;
+}

@@ -1,0 +1,356 @@
+syntax = "proto3";
+
+package discocrypto.v1;
+
+option go_package = "github.com/nickheyer/discocryptoviewer/pkg/proto/discocrypto/v1;discocryptov1";
+
+import "discocrypto/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+// ---------------------------------------------------------------------------
+// X.509 Certificate – full parity with Go's x509.Certificate struct
+// ---------------------------------------------------------------------------
+
+message Certificate {
+  // Version (1, 2, or 3).
+  int32 version = 1;
+
+  // SerialNumber as big-endian bytes.
+  BigInt serial_number = 2;
+
+  SignatureAlgorithm signature_algorithm = 3;
+  DistinguishedName issuer = 4;
+  DistinguishedName subject = 5;
+  Validity validity = 6;
+  PublicKeyAlgorithm public_key_algorithm = 7;
+  SubjectPublicKeyInfo public_key_info = 8;
+  bytes signature = 9;
+
+  // Fingerprints (SHA-256, SHA-1, MD5) of the DER-encoded certificate.
+  Fingerprints fingerprints = 10;
+
+  // Standard extensions
+  BasicConstraints basic_constraints = 11;
+  repeated KeyUsage key_usage = 12;
+  repeated ExtKeyUsage ext_key_usage = 13;
+  repeated ObjectIdentifier unknown_ext_key_usage = 14;
+
+  SubjectAlternativeNames subject_alt_names = 15;
+  bytes subject_key_id = 16;
+  AuthorityKeyIdentifier authority_key_id = 17;
+
+  // Distribution points and access info
+  repeated DistributionPoint crl_distribution_points = 18;
+  AuthorityInfoAccess authority_info_access = 19;
+
+  // Policies
+  repeated PolicyInformation certificate_policies = 20;
+  repeated ObjectIdentifier policy_identifiers = 21;
+  PolicyConstraints policy_constraints = 22;
+  InhibitAnyPolicy inhibit_any_policy = 23;
+
+  // Name constraints
+  NameConstraints name_constraints = 24;
+
+  // SCT list (Certificate Transparency)
+  repeated SignedCertificateTimestamp signed_certificate_timestamps = 25;
+
+  // All extensions including unhandled ones
+  repeated Extension extensions = 26;
+  repeated ObjectIdentifier unhandled_critical_extensions = 27;
+
+  // Raw DER fields (useful for re-encoding or signature verification)
+  bytes raw = 28;
+  bytes raw_tbs_certificate = 29;
+  bytes raw_subject_public_key_info = 30;
+  bytes raw_subject = 31;
+  bytes raw_issuer = 32;
+
+  // Whether the certificate is self-signed
+  bool is_self_signed = 33;
+}
+
+// ---------------------------------------------------------------------------
+// X.509 Certificate Request – full parity with Go's x509.CertificateRequest
+// ---------------------------------------------------------------------------
+
+message CertificateRequest {
+  int32 version = 1;
+  DistinguishedName subject = 2;
+  SignatureAlgorithm signature_algorithm = 3;
+  PublicKeyAlgorithm public_key_algorithm = 4;
+  SubjectPublicKeyInfo public_key_info = 5;
+  bytes signature = 6;
+
+  SubjectAlternativeNames subject_alt_names = 7;
+  repeated Extension extensions = 8;
+  repeated Extension extra_extensions = 9;
+  repeated AttributeTypeAndValue attributes = 10;
+
+  Fingerprints fingerprints = 11;
+
+  bytes raw = 12;
+  bytes raw_tbs_certificate_request = 13;
+  bytes raw_subject_public_key_info = 14;
+  bytes raw_subject = 15;
+}
+
+// ---------------------------------------------------------------------------
+// X.509 Certificate Revocation List – full parity with Go's x509.RevocationList
+// ---------------------------------------------------------------------------
+
+message CertificateRevocationList {
+  int32 version = 1;
+  DistinguishedName issuer = 2;
+  SignatureAlgorithm signature_algorithm = 3;
+  bytes signature = 4;
+
+  google.protobuf.Timestamp this_update = 5;
+  google.protobuf.Timestamp next_update = 6;
+
+  repeated RevokedCertificate revoked_certificates = 7;
+  repeated Extension extensions = 8;
+
+  bytes authority_key_id = 9;
+  BigInt number = 10;
+
+  Fingerprints fingerprints = 11;
+
+  bytes raw = 12;
+  bytes raw_tbs_revocation_list = 13;
+  bytes raw_issuer = 14;
+}
+
+// RevokedCertificate is a single entry in a CRL.
+message RevokedCertificate {
+  BigInt serial_number = 1;
+  google.protobuf.Timestamp revocation_time = 2;
+  RevocationReason reason = 3;
+  repeated Extension extensions = 4;
+}
+
+// RevocationReason mirrors RFC 5280 CRLReason.
+enum RevocationReason {
+  REVOCATION_REASON_UNSPECIFIED = 0;
+  REVOCATION_REASON_KEY_COMPROMISE = 1;
+  REVOCATION_REASON_CA_COMPROMISE = 2;
+  REVOCATION_REASON_AFFILIATION_CHANGED = 3;
+  REVOCATION_REASON_SUPERSEDED = 4;
+  REVOCATION_REASON_CESSATION_OF_OPERATION = 5;
+  REVOCATION_REASON_CERTIFICATE_HOLD = 6;
+  REVOCATION_REASON_REMOVE_FROM_CRL = 8;
+  REVOCATION_REASON_PRIVILEGE_WITHDRAWN = 9;
+  REVOCATION_REASON_AA_COMPROMISE = 10;
+}
+
+// ---------------------------------------------------------------------------
+// Extension structures
+// ---------------------------------------------------------------------------
+
+message BasicConstraints {
+  bool is_ca = 1;
+  int32 max_path_len = 2;
+  bool max_path_len_zero = 3;
+}
+
+message SubjectAlternativeNames {
+  repeated string dns_names = 1;
+  repeated string email_addresses = 2;
+  repeated bytes ip_addresses = 3;
+  repeated string uris = 4;
+  repeated GeneralName other_names = 5;
+}
+
+message AuthorityKeyIdentifier {
+  bytes key_id = 1;
+  DistinguishedName issuer = 2;
+  BigInt serial_number = 3;
+}
+
+message DistributionPoint {
+  repeated GeneralName full_name = 1;
+  DistinguishedName relative_name = 2;
+  repeated string crl_issuer = 3;
+  repeated RevocationReason reasons = 4;
+}
+
+message AuthorityInfoAccess {
+  repeated string ocsp_servers = 1;
+  repeated string issuing_certificate_urls = 2;
+}
+
+message PolicyInformation {
+  ObjectIdentifier policy_identifier = 1;
+  repeated PolicyQualifier qualifiers = 2;
+}
+
+message PolicyQualifier {
+  ObjectIdentifier qualifier_id = 1;
+  string cps_uri = 2;
+  UserNotice user_notice = 3;
+}
+
+message UserNotice {
+  NoticeReference notice_ref = 1;
+  string explicit_text = 2;
+}
+
+message NoticeReference {
+  string organization = 1;
+  repeated int32 notice_numbers = 2;
+}
+
+message PolicyConstraints {
+  int32 require_explicit_policy = 1;
+  bool require_explicit_policy_set = 2;
+  int32 inhibit_policy_mapping = 3;
+  bool inhibit_policy_mapping_set = 4;
+}
+
+message InhibitAnyPolicy {
+  int32 skip_certs = 1;
+}
+
+message NameConstraints {
+  bool critical = 1;
+  repeated string permitted_dns_domains = 2;
+  repeated string excluded_dns_domains = 3;
+  repeated IPNetwork permitted_ip_ranges = 4;
+  repeated IPNetwork excluded_ip_ranges = 5;
+  repeated string permitted_email_addresses = 6;
+  repeated string excluded_email_addresses = 7;
+  repeated string permitted_uri_domains = 8;
+  repeated string excluded_uri_domains = 9;
+}
+
+// SignedCertificateTimestamp represents a single SCT (RFC 6962).
+message SignedCertificateTimestamp {
+  int32 sct_version = 1;
+  bytes log_id = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  bytes extensions = 4;
+  HashAlgorithm hash_algorithm = 5;
+  SignatureAlgorithm signature_algorithm = 6;
+  bytes signature = 7;
+}
+
+// ---------------------------------------------------------------------------
+// X.509 Attribute Certificate (RFC 5755)
+// ---------------------------------------------------------------------------
+
+message AttributeCertificate {
+  int32 version = 1;
+  DistinguishedName issuer = 2;
+  BigInt serial_number = 3;
+  Validity validity = 4;
+  SignatureAlgorithm signature_algorithm = 5;
+  bytes signature = 6;
+
+  // Holder
+  AttributeCertificateHolder holder = 7;
+  repeated AttributeCertificateAttribute attributes = 8;
+  repeated Extension extensions = 9;
+
+  bytes raw = 10;
+}
+
+message AttributeCertificateHolder {
+  DistinguishedName entity_name = 1;
+  DistinguishedName base_certificate_issuer = 2;
+  BigInt base_certificate_serial = 3;
+}
+
+message AttributeCertificateAttribute {
+  ObjectIdentifier type = 1;
+  repeated bytes values = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service X509Service {
+  // Parse a DER or PEM certificate into a Certificate message.
+  rpc ParseCertificate(ParseCertificateRequest) returns (ParseCertificateResponse);
+
+  // Parse a DER or PEM CSR into a CertificateRequest message.
+  rpc ParseCSR(ParseCSRRequest) returns (ParseCSRResponse);
+
+  // Parse a DER or PEM CRL into a CertificateRevocationList message.
+  rpc ParseCRL(ParseCRLRequest) returns (ParseCRLResponse);
+
+  // Parse a DER or PEM attribute certificate.
+  rpc ParseAttributeCertificate(ParseAttributeCertificateRequest) returns (ParseAttributeCertificateResponse);
+
+  // Validate a certificate (chain building, expiration, constraints).
+  rpc ValidateCertificate(ValidateCertificateRequest) returns (ValidateCertificateResponse);
+
+  // Encode a Certificate message back to DER or PEM.
+  rpc EncodeCertificate(EncodeCertificateRequest) returns (EncodeCertificateResponse);
+}
+
+// --- Parse ---
+
+message ParseCertificateRequest {
+  bytes data = 1;
+}
+
+message ParseCertificateResponse {
+  Certificate certificate = 1;
+  Encoding detected_encoding = 2;
+}
+
+message ParseCSRRequest {
+  bytes data = 1;
+}
+
+message ParseCSRResponse {
+  CertificateRequest certificate_request = 1;
+  Encoding detected_encoding = 2;
+}
+
+message ParseCRLRequest {
+  bytes data = 1;
+}
+
+message ParseCRLResponse {
+  CertificateRevocationList crl = 1;
+  Encoding detected_encoding = 2;
+}
+
+message ParseAttributeCertificateRequest {
+  bytes data = 1;
+}
+
+message ParseAttributeCertificateResponse {
+  AttributeCertificate attribute_certificate = 1;
+  Encoding detected_encoding = 2;
+}
+
+// --- Validate ---
+
+message ValidateCertificateRequest {
+  bytes certificate = 1;
+  repeated bytes intermediates = 2;
+  repeated bytes roots = 3;
+  google.protobuf.Timestamp check_time = 4;
+  string dns_name = 5;
+  repeated ExtKeyUsage key_usages = 6;
+}
+
+message ValidateCertificateResponse {
+  bool valid = 1;
+  repeated string errors = 2;
+  repeated Certificate chain = 3;
+}
+
+// --- Encode ---
+
+message EncodeCertificateRequest {
+  Certificate certificate = 1;
+  Encoding target_encoding = 2;
+}
+
+message EncodeCertificateResponse {
+  bytes data = 1;
+}

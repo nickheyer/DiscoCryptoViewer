@@ -1,0 +1,205 @@
+syntax = "proto3";
+
+package discocrypto.v1;
+
+option go_package = "github.com/nickheyer/discocryptoviewer/pkg/proto/discocrypto/v1;discocryptov1";
+
+import "discocrypto/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+// ---------------------------------------------------------------------------
+// OpenPGP – parity with golang.org/x/crypto/openpgp and RFC 4880
+// ---------------------------------------------------------------------------
+
+// PGPPublicKey represents an OpenPGP public key (primary + subkeys).
+message PGPPublicKey {
+  // Primary key
+  PGPKeyData primary_key = 1;
+
+  // User IDs (name <email>).
+  repeated PGPUserID user_ids = 2;
+
+  // Subkeys.
+  repeated PGPSubkey subkeys = 3;
+
+  // Key ID (last 8 bytes of fingerprint, hex-encoded).
+  string key_id = 4;
+
+  // Full fingerprint (hex-encoded).
+  string fingerprint = 5;
+
+  // Bit length of the primary key.
+  int32 key_size_bits = 6;
+
+  // Signatures on this key.
+  repeated PGPSignature signatures = 7;
+
+  // ASCII armor or binary.
+  bytes raw = 8;
+}
+
+// PGPPrivateKey represents an OpenPGP private key.
+message PGPPrivateKey {
+  PGPPublicKey public_key = 1;
+  bool encrypted = 2;
+  PGPSymmetricAlgorithm cipher = 3;
+  PGPStringToKey s2k = 4;
+}
+
+// PGPKeyData holds the core cryptographic data for a single PGP key packet.
+message PGPKeyData {
+  int32 version = 1;
+  PGPPublicKeyAlgorithm algorithm = 2;
+  google.protobuf.Timestamp creation_time = 3;
+  google.protobuf.Timestamp expiration_time = 4;
+  int32 key_size_bits = 5;
+  string fingerprint = 6;
+  string key_id = 7;
+}
+
+// PGPSubkey represents a bound subkey.
+message PGPSubkey {
+  PGPKeyData key_data = 1;
+  PGPSignature binding_signature = 2;
+  repeated PGPKeyFlag key_flags = 3;
+}
+
+// PGPUserID represents a User ID packet.
+message PGPUserID {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  string comment = 4;
+  PGPSignature self_signature = 5;
+  repeated PGPSignature other_signatures = 6;
+}
+
+// PGPSignature represents a signature packet.
+message PGPSignature {
+  int32 version = 1;
+  PGPSignatureType sig_type = 2;
+  PGPPublicKeyAlgorithm pub_key_algorithm = 3;
+  HashAlgorithm hash_algorithm = 4;
+  string issuer_key_id = 5;
+  google.protobuf.Timestamp creation_time = 6;
+  google.protobuf.Timestamp expiration_time = 7;
+  repeated PGPKeyFlag key_flags = 8;
+  bool is_primary_id = 9;
+  repeated PGPNotation notations = 10;
+  bytes raw = 11;
+}
+
+message PGPNotation {
+  string name = 1;
+  string value = 2;
+  bool human_readable = 3;
+}
+
+message PGPStringToKey {
+  int32 type = 1;
+  HashAlgorithm hash = 2;
+  bytes salt = 3;
+  int32 count = 4;
+}
+
+// ---------------------------------------------------------------------------
+// PGP Enums
+// ---------------------------------------------------------------------------
+
+enum PGPPublicKeyAlgorithm {
+  PGP_PUBLIC_KEY_ALGORITHM_UNSPECIFIED = 0;
+  PGP_PUBLIC_KEY_ALGORITHM_RSA = 1;
+  PGP_PUBLIC_KEY_ALGORITHM_RSA_ENCRYPT_ONLY = 2;
+  PGP_PUBLIC_KEY_ALGORITHM_RSA_SIGN_ONLY = 3;
+  PGP_PUBLIC_KEY_ALGORITHM_ELGAMAL = 4;
+  PGP_PUBLIC_KEY_ALGORITHM_DSA = 5;
+  PGP_PUBLIC_KEY_ALGORITHM_ECDH = 6;
+  PGP_PUBLIC_KEY_ALGORITHM_ECDSA = 7;
+  PGP_PUBLIC_KEY_ALGORITHM_EDDSA = 8;
+}
+
+enum PGPSignatureType {
+  PGP_SIGNATURE_TYPE_UNSPECIFIED = 0;
+  PGP_SIGNATURE_TYPE_BINARY = 1;
+  PGP_SIGNATURE_TYPE_TEXT = 2;
+  PGP_SIGNATURE_TYPE_GENERIC_CERT = 3;
+  PGP_SIGNATURE_TYPE_PERSONA_CERT = 4;
+  PGP_SIGNATURE_TYPE_CASUAL_CERT = 5;
+  PGP_SIGNATURE_TYPE_POSITIVE_CERT = 6;
+  PGP_SIGNATURE_TYPE_SUBKEY_BINDING = 7;
+  PGP_SIGNATURE_TYPE_PRIMARY_KEY_BINDING = 8;
+  PGP_SIGNATURE_TYPE_KEY_REVOCATION = 9;
+  PGP_SIGNATURE_TYPE_SUBKEY_REVOCATION = 10;
+  PGP_SIGNATURE_TYPE_CERTIFICATION_REVOCATION = 11;
+  PGP_SIGNATURE_TYPE_TIMESTAMP = 12;
+}
+
+enum PGPSymmetricAlgorithm {
+  PGP_SYMMETRIC_ALGORITHM_UNSPECIFIED = 0;
+  PGP_SYMMETRIC_ALGORITHM_PLAINTEXT = 1;
+  PGP_SYMMETRIC_ALGORITHM_IDEA = 2;
+  PGP_SYMMETRIC_ALGORITHM_TRIPLE_DES = 3;
+  PGP_SYMMETRIC_ALGORITHM_CAST5 = 4;
+  PGP_SYMMETRIC_ALGORITHM_BLOWFISH = 5;
+  PGP_SYMMETRIC_ALGORITHM_AES128 = 6;
+  PGP_SYMMETRIC_ALGORITHM_AES192 = 7;
+  PGP_SYMMETRIC_ALGORITHM_AES256 = 8;
+  PGP_SYMMETRIC_ALGORITHM_TWOFISH = 9;
+  PGP_SYMMETRIC_ALGORITHM_CAMELLIA128 = 10;
+  PGP_SYMMETRIC_ALGORITHM_CAMELLIA192 = 11;
+  PGP_SYMMETRIC_ALGORITHM_CAMELLIA256 = 12;
+}
+
+enum PGPKeyFlag {
+  PGP_KEY_FLAG_UNSPECIFIED = 0;
+  PGP_KEY_FLAG_CERTIFY = 1;
+  PGP_KEY_FLAG_SIGN = 2;
+  PGP_KEY_FLAG_ENCRYPT_COMMUNICATIONS = 3;
+  PGP_KEY_FLAG_ENCRYPT_STORAGE = 4;
+  PGP_KEY_FLAG_SPLIT_KEY = 5;
+  PGP_KEY_FLAG_AUTHENTICATION = 6;
+  PGP_KEY_FLAG_GROUP_KEY = 7;
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service PGPService {
+  // Parse an OpenPGP public key (ASCII armor or binary).
+  rpc ParsePGPPublicKey(ParsePGPPublicKeyRequest) returns (ParsePGPPublicKeyResponse);
+
+  // Parse an OpenPGP private key.
+  rpc ParsePGPPrivateKey(ParsePGPPrivateKeyRequest) returns (ParsePGPPrivateKeyResponse);
+
+  // Parse a detached PGP signature.
+  rpc ParsePGPSignature(ParsePGPSignatureRequest) returns (ParsePGPSignatureResponse);
+}
+
+message ParsePGPPublicKeyRequest {
+  bytes data = 1;
+}
+
+message ParsePGPPublicKeyResponse {
+  PGPPublicKey public_key = 1;
+  Encoding detected_encoding = 2;
+}
+
+message ParsePGPPrivateKeyRequest {
+  bytes data = 1;
+  string passphrase = 2;
+}
+
+message ParsePGPPrivateKeyResponse {
+  PGPPrivateKey private_key = 1;
+  Encoding detected_encoding = 2;
+}
+
+message ParsePGPSignatureRequest {
+  bytes data = 1;
+}
+
+message ParsePGPSignatureResponse {
+  PGPSignature signature = 1;
+  Encoding detected_encoding = 2;
+}

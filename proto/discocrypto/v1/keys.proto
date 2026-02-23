@@ -1,0 +1,217 @@
+syntax = "proto3";
+
+package discocrypto.v1;
+
+option go_package = "github.com/nickheyer/discocryptoviewer/pkg/proto/discocrypto/v1;discocryptov1";
+
+import "discocrypto/v1/common.proto";
+
+// ---------------------------------------------------------------------------
+// RSA – full parity with Go's crypto/rsa
+// ---------------------------------------------------------------------------
+
+message RSAPublicKey {
+  BigInt n = 1;
+  int32 e = 2;
+  int32 key_size_bits = 3;
+  Fingerprints fingerprints = 4;
+}
+
+message RSAPrivateKey {
+  RSAPublicKey public_key = 1;
+  BigInt d = 2;
+  repeated BigInt primes = 3;
+  RSAPrecomputed precomputed = 4;
+  bool encrypted = 5;
+}
+
+message RSAPrecomputed {
+  BigInt dp = 1;
+  BigInt dq = 2;
+  BigInt qinv = 3;
+  repeated RSACRTValue crt_values = 4;
+}
+
+message RSACRTValue {
+  BigInt exp = 1;
+  BigInt coeff = 2;
+  BigInt r = 3;
+}
+
+// ---------------------------------------------------------------------------
+// ECDSA – full parity with Go's crypto/ecdsa
+// ---------------------------------------------------------------------------
+
+message ECDSAPublicKey {
+  NamedCurve curve = 1;
+  BigInt x = 2;
+  BigInt y = 3;
+  int32 key_size_bits = 4;
+  Fingerprints fingerprints = 5;
+}
+
+message ECDSAPrivateKey {
+  ECDSAPublicKey public_key = 1;
+  BigInt d = 2;
+  bool encrypted = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Ed25519 – full parity with Go's crypto/ed25519
+// ---------------------------------------------------------------------------
+
+message Ed25519PublicKey {
+  bytes key_data = 1;
+  Fingerprints fingerprints = 2;
+}
+
+message Ed25519PrivateKey {
+  Ed25519PublicKey public_key = 1;
+  bytes seed = 2;
+  bool encrypted = 3;
+}
+
+// ---------------------------------------------------------------------------
+// DSA – full parity with Go's crypto/dsa (legacy but still in stdlib)
+// ---------------------------------------------------------------------------
+
+message DSAParameters {
+  BigInt p = 1;
+  BigInt q = 2;
+  BigInt g = 3;
+}
+
+message DSAPublicKey {
+  DSAParameters parameters = 1;
+  BigInt y = 2;
+  int32 key_size_bits = 3;
+  Fingerprints fingerprints = 4;
+}
+
+message DSAPrivateKey {
+  DSAPublicKey public_key = 1;
+  BigInt x = 2;
+  bool encrypted = 3;
+}
+
+// ---------------------------------------------------------------------------
+// ECDH – full parity with Go's crypto/ecdh
+// ---------------------------------------------------------------------------
+
+message ECDHPublicKey {
+  NamedCurve curve = 1;
+  bytes key_data = 2;
+  Fingerprints fingerprints = 3;
+}
+
+message ECDHPrivateKey {
+  ECDHPublicKey public_key = 1;
+  bytes key_data = 2;
+  bool encrypted = 3;
+}
+
+// ---------------------------------------------------------------------------
+// DH Parameters (RFC 3279) – used in TLS, IPsec, etc.
+// ---------------------------------------------------------------------------
+
+message DHParameters {
+  BigInt p = 1;
+  BigInt g = 2;
+  int32 key_size_bits = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Polymorphic key wrappers – allows services to return any key type
+// ---------------------------------------------------------------------------
+
+message PublicKey {
+  PublicKeyAlgorithm algorithm = 1;
+  oneof key {
+    RSAPublicKey rsa = 2;
+    ECDSAPublicKey ecdsa = 3;
+    Ed25519PublicKey ed25519 = 4;
+    DSAPublicKey dsa = 5;
+    ECDHPublicKey ecdh = 6;
+  }
+  Fingerprints fingerprints = 7;
+}
+
+message PrivateKey {
+  PublicKeyAlgorithm algorithm = 1;
+  oneof key {
+    RSAPrivateKey rsa = 2;
+    ECDSAPrivateKey ecdsa = 3;
+    Ed25519PrivateKey ed25519 = 4;
+    DSAPrivateKey dsa = 5;
+    ECDHPrivateKey ecdh = 6;
+  }
+  bool encrypted = 7;
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service KeyService {
+  // Parse any public key from DER, PEM, or other encoding.
+  rpc ParsePublicKey(ParsePublicKeyRequest) returns (ParsePublicKeyResponse);
+
+  // Parse any private key from DER, PEM, PKCS#1, PKCS#8, SEC1, etc.
+  rpc ParsePrivateKey(ParsePrivateKeyRequest) returns (ParsePrivateKeyResponse);
+
+  // Parse DH parameters (e.g. from "DH PARAMETERS" PEM block).
+  rpc ParseDHParameters(ParseDHParametersRequest) returns (ParseDHParametersResponse);
+
+  // Encode a public key to the specified format.
+  rpc EncodePublicKey(EncodePublicKeyRequest) returns (EncodePublicKeyResponse);
+
+  // Encode a private key to the specified format.
+  rpc EncodePrivateKey(EncodePrivateKeyRequest) returns (EncodePrivateKeyResponse);
+}
+
+message ParsePublicKeyRequest {
+  bytes data = 1;
+}
+
+message ParsePublicKeyResponse {
+  PublicKey public_key = 1;
+  Encoding detected_encoding = 2;
+}
+
+message ParsePrivateKeyRequest {
+  bytes data = 1;
+  string passphrase = 2;
+}
+
+message ParsePrivateKeyResponse {
+  PrivateKey private_key = 1;
+  Encoding detected_encoding = 2;
+}
+
+message ParseDHParametersRequest {
+  bytes data = 1;
+}
+
+message ParseDHParametersResponse {
+  DHParameters parameters = 1;
+  Encoding detected_encoding = 2;
+}
+
+message EncodePublicKeyRequest {
+  PublicKey public_key = 1;
+  Encoding target_encoding = 2;
+}
+
+message EncodePublicKeyResponse {
+  bytes data = 1;
+}
+
+message EncodePrivateKeyRequest {
+  PrivateKey private_key = 1;
+  Encoding target_encoding = 2;
+  string passphrase = 3;
+}
+
+message EncodePrivateKeyResponse {
+  bytes data = 1;
+}

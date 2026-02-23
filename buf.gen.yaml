@@ -1,0 +1,21 @@
+version: v2
+plugins:
+  # Generate Go code
+  - remote: buf.build/protocolbuffers/go
+    out: pkg/proto
+    opt:
+      - paths=source_relative
+
+  # Generate TypeScript types for the extension host
+  - remote: buf.build/bufbuild/es
+    out: src/proto
+    opt:
+      - target=ts
+      - import_extension=none
+
+  # Generate TypeScript types for the webview
+  - remote: buf.build/bufbuild/es
+    out: webview/src/lib/proto
+    opt:
+      - target=ts
+      - import_extension=none

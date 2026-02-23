@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package discocrypto.v1;
+
+option go_package = "github.com/nickheyer/discocryptoviewer/pkg/proto/discocrypto/v1;discocryptov1";
+
+import "discocrypto/v1/x509.proto";
+
+// ---------------------------------------------------------------------------
+// TLS – parity with Go's crypto/tls connection state
+// ---------------------------------------------------------------------------
+
+// TLSConnectionState mirrors tls.ConnectionState.
+message TLSConnectionState {
+  TLSVersion version = 1;
+  bool handshake_complete = 2;
+  bool did_resume = 3;
+  TLSCipherSuite cipher_suite = 4;
+  string negotiated_protocol = 5;
+  string server_name = 6;
+  repeated Certificate peer_certificates = 7;
+  repeated CertificateChain verified_chains = 8;
+  repeated bytes signed_certificate_timestamps = 9;
+  bytes ocsp_response = 10;
+  bytes tls_unique = 11;
+}
+
+// CertificateChain is a helper for verified chains (list of list).
+message CertificateChain {
+  repeated Certificate certificates = 1;
+}
+
+// TLSCipherSuite describes a TLS cipher suite.
+message TLSCipherSuite {
+  uint32 id = 1;
+  string name = 2;
+  repeated TLSVersion supported_versions = 3;
+  bool insecure = 4;
+}
+
+enum TLSVersion {
+  TLS_VERSION_UNSPECIFIED = 0;
+  TLS_VERSION_SSL30 = 1;
+  TLS_VERSION_TLS10 = 2;
+  TLS_VERSION_TLS11 = 3;
+  TLS_VERSION_TLS12 = 4;
+  TLS_VERSION_TLS13 = 5;
+}

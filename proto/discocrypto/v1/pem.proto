@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package discocrypto.v1;
+
+option go_package = "github.com/nickheyer/discocryptoviewer/pkg/proto/discocrypto/v1;discocryptov1";
+
+import "discocrypto/v1/common.proto";
+
+// ---------------------------------------------------------------------------
+// PEM – full parity with Go's encoding/pem
+// ---------------------------------------------------------------------------
+
+// PemBlock mirrors encoding/pem.Block.
+message PemBlock {
+  // Type string (e.g. "CERTIFICATE", "RSA PRIVATE KEY").
+  string type = 1;
+
+  // Parsed PEM type enum.
+  PemType pem_type = 2;
+
+  // Optional headers (e.g. DEK-Info for encrypted keys).
+  map<string, string> headers = 3;
+
+  // Raw decoded bytes.
+  bytes data = 4;
+}
+
+// PemFile represents a file containing one or more PEM blocks.
+message PemFile {
+  repeated PemBlock blocks = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service PemService {
+  // Decode a PEM file into its constituent blocks.
+  rpc DecodePem(DecodePemRequest) returns (DecodePemResponse);
+
+  // Encode blocks back into PEM format.
+  rpc EncodePem(EncodePemRequest) returns (EncodePemResponse);
+}
+
+message DecodePemRequest {
+  bytes data = 1;
+}
+
+message DecodePemResponse {
+  PemFile pem_file = 1;
+}
+
+message EncodePemRequest {
+  PemFile pem_file = 1;
+}
+
+message EncodePemResponse {
+  bytes data = 1;
+}

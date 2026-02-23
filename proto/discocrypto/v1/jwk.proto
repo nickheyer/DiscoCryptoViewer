@@ -1,0 +1,250 @@
+syntax = "proto3";
+
+package discocrypto.v1;
+
+option go_package = "github.com/nickheyer/discocryptoviewer/pkg/proto/discocrypto/v1;discocryptov1";
+
+import "google/protobuf/timestamp.proto";
+
+// ---------------------------------------------------------------------------
+// JSON Web Key (RFC 7517)
+// ---------------------------------------------------------------------------
+
+message JSONWebKey {
+  // Key type ("RSA", "EC", "OKP", "oct").
+  string kty = 1;
+
+  // Key use ("sig" or "enc").
+  string use = 2;
+
+  // Key operations.
+  repeated string key_ops = 3;
+
+  // Algorithm.
+  string alg = 4;
+
+  // Key ID.
+  string kid = 5;
+
+  // X.509 URL.
+  string x5u = 6;
+
+  // X.509 certificate chain (base64-encoded DER certs).
+  repeated bytes x5c = 7;
+
+  // X.509 certificate SHA-1 thumbprint.
+  bytes x5t = 8;
+
+  // X.509 certificate SHA-256 thumbprint.
+  bytes x5t_s256 = 9;
+
+  // Key material (algorithm-specific parameters).
+  oneof key_data {
+    JWKRSAKeyData rsa = 10;
+    JWKECKeyData ec = 11;
+    JWKOctetKeyData okp = 12;
+    JWKSymmetricKeyData oct = 13;
+  }
+
+  // Whether this contains private key material.
+  bool is_private = 14;
+}
+
+// JSONWebKeySet (RFC 7517 Section 5).
+message JSONWebKeySet {
+  repeated JSONWebKey keys = 1;
+}
+
+// RSA key parameters (RFC 7518 Section 6.3).
+message JWKRSAKeyData {
+  bytes n = 1;
+  bytes e = 2;
+  // Private key fields (optional).
+  bytes d = 3;
+  bytes p = 4;
+  bytes q = 5;
+  bytes dp = 6;
+  bytes dq = 7;
+  bytes qi = 8;
+  repeated JWKRSAOtherPrime oth = 9;
+}
+
+message JWKRSAOtherPrime {
+  bytes r = 1;
+  bytes d = 2;
+  bytes t = 3;
+}
+
+// EC key parameters (RFC 7518 Section 6.2).
+message JWKECKeyData {
+  string crv = 1;
+  bytes x = 2;
+  bytes y = 3;
+  // Private key field (optional).
+  bytes d = 4;
+}
+
+// OKP key parameters – Ed25519, X25519, Ed448, X448 (RFC 8037).
+message JWKOctetKeyData {
+  string crv = 1;
+  bytes x = 2;
+  // Private key field (optional).
+  bytes d = 3;
+}
+
+// Symmetric key parameters (RFC 7518 Section 6.4).
+message JWKSymmetricKeyData {
+  bytes k = 1;
+}
+
+// ---------------------------------------------------------------------------
+// JSON Web Token (RFC 7519)
+// ---------------------------------------------------------------------------
+
+message JSONWebToken {
+  // JOSE header.
+  JOSEHeader header = 1;
+
+  // Standard claims.
+  JWTClaims claims = 2;
+
+  // Signature bytes (after base64url decode).
+  bytes signature = 3;
+
+  // Raw compact serialization.
+  string raw = 4;
+
+  // Signature verification status (if checked against a key).
+  JWTValidationResult validation = 5;
+}
+
+message JOSEHeader {
+  string alg = 1;
+  string typ = 2;
+  string cty = 3;
+  string kid = 4;
+  string jku = 5;
+  JSONWebKey jwk = 6;
+  repeated bytes x5c = 7;
+  bytes x5t = 8;
+  bytes x5t_s256 = 9;
+  string enc = 10;
+  string zip = 11;
+  map<string, string> extra = 12;
+}
+
+message JWTClaims {
+  string issuer = 1;
+  string subject = 2;
+  repeated string audience = 3;
+  google.protobuf.Timestamp expiration = 4;
+  google.protobuf.Timestamp not_before = 5;
+  google.protobuf.Timestamp issued_at = 6;
+  string jwt_id = 7;
+  // All claims as raw JSON key-value pairs (including custom claims).
+  map<string, string> extra = 8;
+}
+
+message JWTValidationResult {
+  bool signature_valid = 1;
+  bool expired = 2;
+  bool not_yet_valid = 3;
+  repeated string errors = 4;
+}
+
+// ---------------------------------------------------------------------------
+// JSON Web Signature (RFC 7515)
+// ---------------------------------------------------------------------------
+
+message JSONWebSignature {
+  // Payload (decoded).
+  bytes payload = 1;
+
+  // Signatures (JWS can have multiple in general JSON serialization).
+  repeated JWSSignature signatures = 2;
+
+  string raw = 3;
+}
+
+message JWSSignature {
+  JOSEHeader header = 1;
+  JOSEHeader protected_header = 2;
+  bytes signature = 3;
+}
+
+// ---------------------------------------------------------------------------
+// JSON Web Encryption (RFC 7516)
+// ---------------------------------------------------------------------------
+
+message JSONWebEncryption {
+  JOSEHeader header = 1;
+  bytes encrypted_key = 2;
+  bytes iv = 3;
+  bytes ciphertext = 4;
+  bytes tag = 5;
+  bytes aad = 6;
+  string raw = 7;
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service JWKService {
+  // Parse a JWK.
+  rpc ParseJWK(ParseJWKRequest) returns (ParseJWKResponse);
+
+  // Parse a JWKS.
+  rpc ParseJWKS(ParseJWKSRequest) returns (ParseJWKSResponse);
+
+  // Parse a JWT (decode header + claims, optionally verify signature).
+  rpc ParseJWT(ParseJWTRequest) returns (ParseJWTResponse);
+
+  // Parse a JWS.
+  rpc ParseJWS(ParseJWSRequest) returns (ParseJWSResponse);
+
+  // Parse a JWE.
+  rpc ParseJWE(ParseJWERequest) returns (ParseJWEResponse);
+}
+
+message ParseJWKRequest {
+  bytes data = 1;
+}
+
+message ParseJWKResponse {
+  JSONWebKey jwk = 1;
+}
+
+message ParseJWKSRequest {
+  bytes data = 1;
+}
+
+message ParseJWKSResponse {
+  JSONWebKeySet jwks = 1;
+}
+
+message ParseJWTRequest {
+  bytes data = 1;
+  // Optional key for signature verification.
+  JSONWebKey verification_key = 2;
+}
+
+message ParseJWTResponse {
+  JSONWebToken jwt = 1;
+}
+
+message ParseJWSRequest {
+  bytes data = 1;
+}
+
+message ParseJWSResponse {
+  JSONWebSignature jws = 1;
+}
+
+message ParseJWERequest {
+  bytes data = 1;
+}
+
+message ParseJWEResponse {
+  JSONWebEncryption jwe = 1;
+}

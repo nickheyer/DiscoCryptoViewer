@@ -1,0 +1,251 @@
+syntax = "proto3";
+
+package discocrypto.v1;
+
+option go_package = "github.com/nickheyer/discocryptoviewer/pkg/proto/discocrypto/v1;discocryptov1";
+
+import "discocrypto/v1/common.proto";
+import "discocrypto/v1/keys.proto";
+import "discocrypto/v1/x509.proto";
+import "google/protobuf/timestamp.proto";
+
+// ---------------------------------------------------------------------------
+// PKCS#7 / CMS (RFC 5652)
+// ---------------------------------------------------------------------------
+
+// ContentType identifies the CMS content type.
+enum CMSContentType {
+  CMS_CONTENT_TYPE_UNSPECIFIED = 0;
+  CMS_CONTENT_TYPE_DATA = 1;
+  CMS_CONTENT_TYPE_SIGNED_DATA = 2;
+  CMS_CONTENT_TYPE_ENVELOPED_DATA = 3;
+  CMS_CONTENT_TYPE_DIGESTED_DATA = 4;
+  CMS_CONTENT_TYPE_ENCRYPTED_DATA = 5;
+  CMS_CONTENT_TYPE_AUTHENTICATED_DATA = 6;
+}
+
+message PKCS7 {
+  CMSContentType content_type = 1;
+  oneof content {
+    CMSSignedData signed_data = 2;
+    CMSEnvelopedData enveloped_data = 3;
+    CMSEncryptedData encrypted_data = 4;
+    bytes raw_data = 5;
+  }
+  bytes raw = 6;
+}
+
+message CMSSignedData {
+  int32 version = 1;
+  repeated AlgorithmIdentifier digest_algorithms = 2;
+  CMSEncapsulatedContentInfo encap_content_info = 3;
+  repeated Certificate certificates = 4;
+  repeated CertificateRevocationList crls = 5;
+  repeated CMSSignerInfo signer_infos = 6;
+}
+
+message CMSEncapsulatedContentInfo {
+  ObjectIdentifier content_type = 1;
+  bytes content = 2;
+}
+
+message CMSSignerInfo {
+  int32 version = 1;
+  CMSSignerIdentifier sid = 2;
+  AlgorithmIdentifier digest_algorithm = 3;
+  repeated CMSAttribute signed_attrs = 4;
+  AlgorithmIdentifier signature_algorithm = 5;
+  bytes signature = 6;
+  repeated CMSAttribute unsigned_attrs = 7;
+}
+
+message CMSSignerIdentifier {
+  oneof identifier {
+    CMSIssuerAndSerialNumber issuer_and_serial = 1;
+    bytes subject_key_id = 2;
+  }
+}
+
+message CMSIssuerAndSerialNumber {
+  DistinguishedName issuer = 1;
+  BigInt serial_number = 2;
+}
+
+message CMSAttribute {
+  ObjectIdentifier type = 1;
+  repeated bytes values = 2;
+}
+
+message CMSEnvelopedData {
+  int32 version = 1;
+  repeated CMSRecipientInfo recipient_infos = 2;
+  CMSEncryptedContentInfo encrypted_content_info = 3;
+}
+
+message CMSRecipientInfo {
+  int32 version = 1;
+  CMSIssuerAndSerialNumber rid = 2;
+  AlgorithmIdentifier key_encryption_algorithm = 3;
+  bytes encrypted_key = 4;
+}
+
+message CMSEncryptedContentInfo {
+  ObjectIdentifier content_type = 1;
+  AlgorithmIdentifier content_encryption_algorithm = 2;
+  bytes encrypted_content = 3;
+}
+
+message CMSEncryptedData {
+  int32 version = 1;
+  CMSEncryptedContentInfo encrypted_content_info = 2;
+}
+
+// ---------------------------------------------------------------------------
+// PKCS#8 – Private Key Info (RFC 5958)
+// ---------------------------------------------------------------------------
+
+message PKCS8PrivateKeyInfo {
+  int32 version = 1;
+  AlgorithmIdentifier algorithm = 2;
+  bytes private_key = 3;
+  repeated CMSAttribute attributes = 4;
+  PrivateKey parsed_key = 5;
+}
+
+message PKCS8EncryptedPrivateKeyInfo {
+  AlgorithmIdentifier encryption_algorithm = 1;
+  bytes encrypted_data = 2;
+  // PBES2 parameters if applicable
+  PBES2Parameters pbes2_params = 3;
+}
+
+message PBES2Parameters {
+  PBKDF2Parameters key_derivation_func = 1;
+  AlgorithmIdentifier encryption_scheme = 2;
+}
+
+message PBKDF2Parameters {
+  bytes salt = 1;
+  int32 iteration_count = 2;
+  int32 key_length = 3;
+  AlgorithmIdentifier prf = 4;
+}
+
+// ---------------------------------------------------------------------------
+// PKCS#12 / PFX (RFC 7292)
+// ---------------------------------------------------------------------------
+
+message PKCS12 {
+  int32 version = 1;
+  repeated PKCS12SafeBag safe_bags = 2;
+  // Convenience: extracted high-level objects
+  repeated Certificate certificates = 3;
+  PrivateKey private_key = 4;
+  repeated Certificate ca_certificates = 5;
+}
+
+message PKCS12SafeBag {
+  ObjectIdentifier bag_id = 1;
+  bytes bag_value = 2;
+  map<string, string> attributes = 3;
+  PKCS12BagType bag_type = 4;
+}
+
+enum PKCS12BagType {
+  PKCS12_BAG_TYPE_UNSPECIFIED = 0;
+  PKCS12_BAG_TYPE_KEY = 1;
+  PKCS12_BAG_TYPE_PKCS8_SHROUDED_KEY = 2;
+  PKCS12_BAG_TYPE_CERT = 3;
+  PKCS12_BAG_TYPE_CRL = 4;
+  PKCS12_BAG_TYPE_SECRET = 5;
+  PKCS12_BAG_TYPE_SAFE_CONTENTS = 6;
+}
+
+// ---------------------------------------------------------------------------
+// RFC 3161 Timestamp Protocol
+// ---------------------------------------------------------------------------
+
+message TimestampRequest {
+  int32 version = 1;
+  AlgorithmIdentifier message_imprint_algorithm = 2;
+  bytes message_imprint = 3;
+  ObjectIdentifier policy = 4;
+  BigInt nonce = 5;
+  bool cert_req = 6;
+}
+
+message TimestampResponse {
+  int32 status = 1;
+  string status_string = 2;
+  TimestampTokenInfo token_info = 3;
+  bytes raw = 4;
+}
+
+message TimestampTokenInfo {
+  int32 version = 1;
+  ObjectIdentifier policy = 2;
+  AlgorithmIdentifier message_imprint_algorithm = 3;
+  bytes message_imprint = 4;
+  BigInt serial_number = 5;
+  google.protobuf.Timestamp gen_time = 6;
+  BigInt nonce = 7;
+  DistinguishedName tsa = 8;
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service PKCSService {
+  // Parse a PKCS#7/CMS object.
+  rpc ParsePKCS7(ParsePKCS7Request) returns (ParsePKCS7Response);
+
+  // Parse a PKCS#8 private key (encrypted or unencrypted).
+  rpc ParsePKCS8(ParsePKCS8Request) returns (ParsePKCS8Response);
+
+  // Parse a PKCS#12/PFX archive.
+  rpc ParsePKCS12(ParsePKCS12Request) returns (ParsePKCS12Response);
+
+  // Parse a RFC 3161 timestamp response.
+  rpc ParseTimestamp(ParseTimestampRequest) returns (ParseTimestampResponse);
+}
+
+message ParsePKCS7Request {
+  bytes data = 1;
+}
+
+message ParsePKCS7Response {
+  PKCS7 pkcs7 = 1;
+  Encoding detected_encoding = 2;
+}
+
+message ParsePKCS8Request {
+  bytes data = 1;
+  string passphrase = 2;
+}
+
+message ParsePKCS8Response {
+  oneof result {
+    PKCS8PrivateKeyInfo private_key_info = 1;
+    PKCS8EncryptedPrivateKeyInfo encrypted_private_key_info = 2;
+  }
+  Encoding detected_encoding = 3;
+}
+
+message ParsePKCS12Request {
+  bytes data = 1;
+  string passphrase = 2;
+}
+
+message ParsePKCS12Response {
+  PKCS12 pkcs12 = 1;
+}
+
+message ParseTimestampRequest {
+  bytes data = 1;
+}
+
+message ParseTimestampResponse {
+  TimestampResponse timestamp = 1;
+  Encoding detected_encoding = 2;
+}

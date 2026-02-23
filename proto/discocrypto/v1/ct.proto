@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package discocrypto.v1;
+
+option go_package = "github.com/nickheyer/discocryptoviewer/pkg/proto/discocrypto/v1;discocryptov1";
+
+import "discocrypto/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+// ---------------------------------------------------------------------------
+// Certificate Transparency – RFC 6962
+// ---------------------------------------------------------------------------
+
+// CTSignedCertificateTimestamp is an SCT from a CT log.
+message CTSignedCertificateTimestamp {
+  CTVersion version = 1;
+  bytes log_id = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  bytes extensions = 4;
+  CTSignature signature = 5;
+}
+
+message CTSignature {
+  HashAlgorithm hash_algorithm = 1;
+  SignatureAlgorithm signature_algorithm = 2;
+  bytes signature = 3;
+}
+
+// CTSignedTreeHead represents a signed tree head from a CT log.
+message CTSignedTreeHead {
+  CTVersion version = 1;
+  uint64 tree_size = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  bytes root_hash = 4;
+  CTSignature signature = 5;
+  bytes log_id = 6;
+}
+
+// CTLogEntry represents a single entry in a CT log.
+message CTLogEntry {
+  uint64 index = 1;
+  CTEntryType entry_type = 2;
+  bytes leaf_input = 3;
+  bytes extra_data = 4;
+}
+
+// CTLogInfo describes a known CT log.
+message CTLogInfo {
+  string description = 1;
+  bytes log_id = 2;
+  string url = 3;
+  bytes public_key = 4;
+}
+
+enum CTVersion {
+  CT_VERSION_UNSPECIFIED = 0;
+  CT_VERSION_V1 = 1;
+}
+
+enum CTEntryType {
+  CT_ENTRY_TYPE_UNSPECIFIED = 0;
+  CT_ENTRY_TYPE_X509 = 1;
+  CT_ENTRY_TYPE_PRECERT = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service CTService {
+  // Parse a serialized SCT.
+  rpc ParseSCT(ParseSCTRequest) returns (ParseSCTResponse);
+
+  // Parse a list of SCTs (e.g. from TLS extension or X.509 extension).
+  rpc ParseSCTList(ParseSCTListRequest) returns (ParseSCTListResponse);
+}
+
+message ParseSCTRequest {
+  bytes data = 1;
+}
+
+message ParseSCTResponse {
+  CTSignedCertificateTimestamp sct = 1;
+}
+
+message ParseSCTListRequest {
+  bytes data = 1;
+}
+
+message ParseSCTListResponse {
+  repeated CTSignedCertificateTimestamp scts = 1;
+}

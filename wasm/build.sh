@@ -3,14 +3,13 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-ENGINE_DIR="$SCRIPT_DIR/engine"
 OUT_DIR="$PROJECT_ROOT/dist/wasm"
 
 mkdir -p "$OUT_DIR"
 
 echo "==> Compiling Go WASM engine..."
-cd "$ENGINE_DIR"
-GOOS=js GOARCH=wasm go build -o "$OUT_DIR/engine.wasm" .
+cd "$PROJECT_ROOT"
+GOOS=js GOARCH=wasm go build -o "$OUT_DIR/engine.wasm" ./wasm/engine
 
 echo "==> Copying wasm_exec.js glue..."
 GOROOT=$(go env GOROOT)

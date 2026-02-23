@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package discocrypto.v1;
+
+option go_package = "github.com/nickheyer/discocryptoviewer/pkg/proto/discocrypto/v1;discocryptov1";
+
+import "discocrypto/v1/common.proto";
+import "discocrypto/v1/ct.proto";
+import "discocrypto/v1/jwk.proto";
+import "discocrypto/v1/keys.proto";
+import "discocrypto/v1/ocsp.proto";
+import "discocrypto/v1/pem.proto";
+import "discocrypto/v1/pgp.proto";
+import "discocrypto/v1/pkcs.proto";
+import "discocrypto/v1/ssh.proto";
+import "discocrypto/v1/x509.proto";
+
+// ---------------------------------------------------------------------------
+// Unified Parser Service – the single entry point for the WASM engine
+// ---------------------------------------------------------------------------
+
+service ParserService {
+  // Detect the type(s) of crypto object(s) in raw bytes without full parsing.
+  rpc Detect(DetectRequest) returns (DetectResponse);
+
+  // Parse raw bytes into the appropriate crypto object(s).
+  rpc Parse(ParseRequest) returns (ParseResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Detect
+// ---------------------------------------------------------------------------
+
+message DetectRequest {
+  bytes data = 1;
+  // Optional filename hint to aid detection (e.g. ".p12", ".pub").
+  string filename = 2;
+}
+
+message DetectResponse {
+  repeated DetectedObject objects = 1;
+}
+
+message DetectedObject {
+  CryptoObjectType type = 1;
+  Encoding encoding = 2;
+  // Byte offset within the input where this object starts.
+  int64 offset = 3;
+  // Size in bytes (0 if unknown without full parse).
+  int64 size = 4;
+  // Human-readable label (e.g. "RSA-2048 Private Key (PKCS#8, PEM)").
+  string label = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Parse
+// ---------------------------------------------------------------------------
+
+message ParseRequest {
+  bytes data = 1;
+  // Optional filename hint.
+  string filename = 2;
+  // Optional explicit type hint (skip detection).
+  CryptoObjectType type_hint = 3;
+  // Passphrase for encrypted objects.
+  string passphrase = 4;
+}
+
+message ParseResponse {
+  repeated ParsedObject objects = 1;
+  Encoding detected_encoding = 2;
+}
+
+// ParsedObject wraps exactly one parsed crypto object.
+message ParsedObject {
+  CryptoObjectType type = 1;
+  string label = 2;
+
+  oneof object {
+    Certificate certificate = 3;
+    CertificateRequest certificate_request = 4;
+    CertificateRevocationList crl = 5;
+    AttributeCertificate attribute_certificate = 6;
+    PublicKey public_key = 7;
+    PrivateKey private_key = 8;
+    DHParameters dh_parameters = 9;
+    PemFile pem_file = 10;
+    PKCS7 pkcs7 = 11;
+    PKCS8PrivateKeyInfo pkcs8 = 12;
+    PKCS8EncryptedPrivateKeyInfo pkcs8_encrypted = 13;
+    PKCS12 pkcs12 = 14;
+    SSHPublicKey ssh_public_key = 15;
+    SSHPrivateKey ssh_private_key = 16;
+    SSHCertificate ssh_certificate = 17;
+    PGPPublicKey pgp_public_key = 18;
+    PGPPrivateKey pgp_private_key = 19;
+    PGPSignature pgp_signature = 20;
+    JSONWebKey jwk = 21;
+    JSONWebKeySet jwks = 22;
+    JSONWebToken jwt = 23;
+    JSONWebSignature jws = 24;
+    JSONWebEncryption jwe = 25;
+    OCSPRequest ocsp_request = 26;
+    OCSPResponse ocsp_response = 27;
+    CTSignedCertificateTimestamp sct = 28;
+    TimestampResponse timestamp_response = 29;
+  }
+}

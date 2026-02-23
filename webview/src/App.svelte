@@ -1,45 +1,86 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import type { CertInfo, MessageFromExtension } from './lib/types';
-    import CertCard from './lib/CertCard.svelte';
-    import "./app.css"
+  import './app.css';
+  import { fromBinary } from '@bufbuild/protobuf';
+  import { ParseResponseSchema, type ParseResponse } from './lib/proto/discocrypto/v1/parser_pb';
+  import { encodingName } from './lib/utils/format';
+  import ObjectViewer from './lib/components/ObjectViewer.svelte';
 
-    let certs = $state<CertInfo[]>([]);
-    let fileName = $state('');
-    let error = $state('');
-    let loading = $state(true);
+  const vscode = (globalThis as any).acquireVsCodeApi();
 
-    onMount(() => {
-        window.addEventListener('message', (event: MessageEvent<MessageFromExtension>) => {
-            const msg = event.data;
-            if (msg.type === 'certs') {
-                certs = msg.certs;
-                fileName = msg.fileName;
-                loading = false;
-            } else if (msg.type === 'error') {
-                error = msg.message;
-                loading = false;
-            }
-        });
-    });
+  let response = $state<ParseResponse | null>(null);
+  let error = $state<string | null>(null);
+  let filename = $state('');
+  let loading = $state(true);
+  let needsPassphrase = $state(false);
+  let passphrase = $state('');
+
+  window.addEventListener('message', (event) => {
+    const msg = event.data;
+    if (msg.type === 'parsed') {
+      try {
+        filename = msg.filename;
+        const bytes = new Uint8Array(msg.data);
+        response = fromBinary(ParseResponseSchema, bytes);
+        error = null;
+      } catch (e) {
+        error = e instanceof Error ? e.message : 'Failed to parse response';
+        response = null;
+      }
+      loading = false;
+    } else if (msg.type === 'error') {
+      if (msg.message.includes('password incorrect') || msg.message.includes('decryption password')) {
+        needsPassphrase = true;
+        error = null;
+      } else {
+        error = msg.message;
+        needsPassphrase = false;
+      }
+      response = null;
+      loading = false;
+    }
+  });
 </script>
 
-<main>
-    {#if loading}
-        <div class="loading">Loading certificate data…</div>
-    {:else if error}
-        <div class="error">
-            <h2>Failed to parse file</h2>
-            <p>{error}</p>
-        </div>
-    {:else}
-        <div class="header">
-            <h1>🔐 {fileName}</h1>
-            <span class="subtitle">{certs.length} certificate{certs.length !== 1 ? 's' : ''} found</span>
-        </div>
-
-        {#each certs as cert, i}
-            <CertCard {cert} index={i} total={certs.length} />
-        {/each}
+<main class="dc-app">
+  {#if loading}
+    <div class="dc-loading">
+      <div class="dc-spinner"></div>
+      <span>Parsing cryptographic data...</span>
+    </div>
+  {:else if needsPassphrase}
+    <div class="dc-passphrase">
+      <div class="dc-passphrase-title">This file requires a passphrase</div>
+      <form onsubmit={(e) => { e.preventDefault(); loading = true; needsPassphrase = false; vscode.postMessage({ type: 'retry', passphrase }); passphrase = ''; }}>
+        <input type="password" bind:value={passphrase} placeholder="Enter passphrase" class="dc-passphrase-input" />
+        <button type="submit" class="dc-passphrase-btn">Unlock</button>
+      </form>
+    </div>
+  {:else if error}
+    <div class="dc-error">{error}</div>
+  {:else if response}
+    {#if filename}
+      <div class="dc-filename">{filename}</div>
     {/if}
+
+    {#if response.objects.length === 0}
+      <div class="dc-empty">
+        <div class="dc-empty-title">No cryptographic objects detected</div>
+        <div>The file could not be parsed as a known cryptographic format.</div>
+      </div>
+    {:else}
+      {#if response.detectedEncoding}
+        <div style="margin-bottom: 12px; font-size: 0.82em; color: var(--dc-text-dim); text-transform: uppercase; letter-spacing: 0.04em">
+          Encoding: {encodingName(response.detectedEncoding)}
+          &middot; {response.objects.length} object{response.objects.length !== 1 ? 's' : ''}
+        </div>
+      {/if}
+
+      {#each response.objects as obj, i}
+        {#if i > 0}
+          <div style="margin: 16px 0; border-top: 2px solid var(--dc-border)"></div>
+        {/if}
+        <ObjectViewer object={obj} />
+      {/each}
+    {/if}
+  {/if}
 </main>

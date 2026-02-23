@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package discocrypto.v1;
+
+option go_package = "github.com/nickheyer/discocryptoviewer/pkg/proto/discocrypto/v1;discocryptov1";
+
+import "discocrypto/v1/common.proto";
+import "discocrypto/v1/x509.proto";
+import "google/protobuf/timestamp.proto";
+
+// ---------------------------------------------------------------------------
+// OCSP – parity with golang.org/x/crypto/ocsp (RFC 6960)
+// ---------------------------------------------------------------------------
+
+// OCSPRequest represents an OCSP request.
+message OCSPRequest {
+  HashAlgorithm hash_algorithm = 1;
+  bytes issuer_name_hash = 2;
+  bytes issuer_key_hash = 3;
+  BigInt serial_number = 4;
+  repeated Extension extensions = 5;
+  bytes raw = 6;
+}
+
+// OCSPResponse represents an OCSP response.
+message OCSPResponse {
+  OCSPResponseStatus status = 1;
+
+  // Response bytes (present when status == SUCCESSFUL).
+  OCSPBasicResponse response = 2;
+
+  bytes raw = 3;
+}
+
+message OCSPBasicResponse {
+  // TBS response data.
+  repeated OCSPSingleResponse responses = 1;
+
+  // Responder identification.
+  oneof responder_id {
+    DistinguishedName responder_name = 2;
+    bytes responder_key_hash = 3;
+  }
+
+  google.protobuf.Timestamp produced_at = 4;
+  SignatureAlgorithm signature_algorithm = 5;
+  bytes signature = 6;
+
+  // Certificates included in the response.
+  repeated Certificate certificates = 7;
+
+  repeated Extension extensions = 8;
+}
+
+message OCSPSingleResponse {
+  // Certificate ID.
+  HashAlgorithm hash_algorithm = 1;
+  bytes issuer_name_hash = 2;
+  bytes issuer_key_hash = 3;
+  BigInt serial_number = 4;
+
+  // Status.
+  OCSPCertStatus cert_status = 5;
+
+  // Timestamps.
+  google.protobuf.Timestamp this_update = 6;
+  google.protobuf.Timestamp next_update = 7;
+
+  // Revocation info (when status == REVOKED).
+  google.protobuf.Timestamp revocation_time = 8;
+  RevocationReason revocation_reason = 9;
+
+  repeated Extension extensions = 10;
+}
+
+// OCSPResponseStatus mirrors RFC 6960 OCSPResponseStatus.
+enum OCSPResponseStatus {
+  OCSP_RESPONSE_STATUS_UNSPECIFIED = 0;
+  OCSP_RESPONSE_STATUS_SUCCESSFUL = 1;
+  OCSP_RESPONSE_STATUS_MALFORMED_REQUEST = 2;
+  OCSP_RESPONSE_STATUS_INTERNAL_ERROR = 3;
+  OCSP_RESPONSE_STATUS_TRY_LATER = 4;
+  OCSP_RESPONSE_STATUS_SIG_REQUIRED = 5;
+  OCSP_RESPONSE_STATUS_UNAUTHORIZED = 6;
+}
+
+// OCSPCertStatus indicates the revocation status of a certificate.
+enum OCSPCertStatus {
+  OCSP_CERT_STATUS_UNSPECIFIED = 0;
+  OCSP_CERT_STATUS_GOOD = 1;
+  OCSP_CERT_STATUS_REVOKED = 2;
+  OCSP_CERT_STATUS_UNKNOWN = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service OCSPService {
+  // Parse an OCSP request.
+  rpc ParseOCSPRequest(ParseOCSPRequestRequest) returns (ParseOCSPRequestResponse);
+
+  // Parse an OCSP response.
+  rpc ParseOCSPResponse(ParseOCSPResponseRequest) returns (ParseOCSPResponseResponse);
+}
+
+message ParseOCSPRequestRequest {
+  bytes data = 1;
+}
+
+message ParseOCSPRequestResponse {
+  OCSPRequest request = 1;
+  Encoding detected_encoding = 2;
+}
+
+message ParseOCSPResponseRequest {
+  bytes data = 1;
+}
+
+message ParseOCSPResponseResponse {
+  OCSPResponse response = 1;
+  Encoding detected_encoding = 2;
+}

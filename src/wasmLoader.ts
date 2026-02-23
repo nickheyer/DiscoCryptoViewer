@@ -1,52 +1,25 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-
-// Type for the global DiscoEngine namespace set by Go WASM
-interface DiscoEngine {
-    parsePEM(pem: string): string;
-}
-
-interface ParseResult {
-    ok: boolean;
-    certs?: CertInfo[];
-    error?: string;
-}
-
-export interface CertInfo {
-    subject: string;
-    issuer: string;
-    serialNumber: string;
-    notBefore: string;
-    notAfter: string;
-    signatureAlgorithm: string;
-    publicKeyAlgorithm: string;
-    publicKeySize: number;
-    isCA: boolean;
-    dnsNames: string[] | null;
-    emailAddresses: string[] | null;
-    ipAddresses: string[] | null;
-    keyUsages: string[] | null;
-    extKeyUsages: string[] | null;
-    version: number;
-}
+import { type DescMessage, type MessageShape, fromBinary, toBinary } from '@bufbuild/protobuf';
 
 let engineReady = false;
+let engineDead = false;
+let extensionContext: vscode.ExtensionContext;
 
-/**
- * Initializes the Go WASM runtime and loads the engine.
- * Must be called once during extension activation.
- */
 export async function initWasmEngine(context: vscode.ExtensionContext): Promise<void> {
-    if (engineReady) {
-        return;
-    }
+    extensionContext = context;
+    await startEngine();
+}
 
-    const wasmDir = path.join(context.extensionPath, 'dist', 'wasm');
+async function startEngine(): Promise<void> {
+    engineReady = false;
+    engineDead = false;
+
+    const wasmDir = path.join(extensionContext.extensionPath, 'dist', 'wasm');
     const wasmExecPath = path.join(wasmDir, 'wasm_exec.js');
     const wasmBinaryPath = path.join(wasmDir, 'engine.wasm');
 
-    // Load Go's wasm_exec.js glue into the current Node.js context
     require(wasmExecPath);
 
     // @ts-expect-error - Go class is injected by wasm_exec.js
@@ -56,21 +29,56 @@ export async function initWasmEngine(context: vscode.ExtensionContext): Promise<
     const wasmModule = await WebAssembly.compile(wasmBuffer);
     const instance = await WebAssembly.instantiate(wasmModule, go.importObject);
 
-    // Run the Go program (non-blocking — it parks on select{})
-    go.run(instance);
+    go.run(instance).then(() => {
+        engineReady = false;
+        engineDead = true;
+        console.error('Disco Crypto Viewer: WASM engine exited unexpectedly');
+    });
 
     engineReady = true;
 }
 
-/**
- * Parse PEM-encoded certificate data via the Go WASM engine.
- */
-export function parsePEM(pemString: string): ParseResult {
+export async function ensureEngine(): Promise<void> {
+    if (engineDead) {
+        console.log('Disco Crypto Viewer: restarting WASM engine...');
+        await startEngine();
+    }
     if (!engineReady) {
-        throw new Error('WASM engine not initialized. Call initWasmEngine() first.');
+        throw new Error('WASM engine not initialized');
+    }
+}
+
+export function callEngine<
+    ReqDesc extends DescMessage,
+    ResDesc extends DescMessage,
+>(
+    method: string,
+    request: MessageShape<ReqDesc>,
+    requestSchema: ReqDesc,
+    responseSchema: ResDesc,
+): MessageShape<ResDesc> {
+    if (!engineReady || engineDead) {
+        throw new Error('WASM engine not available');
     }
 
-    const engine = (globalThis as any).DiscoEngine as DiscoEngine;
-    const rawResult = engine.parsePEM(pemString);
-    return JSON.parse(rawResult) as ParseResult;
+    const engine = (globalThis as any).DiscoEngine;
+    if (!engine || typeof engine[method] !== 'function') {
+        throw new Error(`DiscoEngine.${method} is not available`);
+    }
+
+    try {
+        const reqBytes = toBinary(requestSchema, request);
+        const result = engine[method](reqBytes);
+        if (result && typeof result === 'object' && 'error' in result) {
+            throw new Error(result.error);
+        }
+        const resBytes = new Uint8Array(result);
+        return fromBinary(responseSchema, resBytes);
+    } catch (err) {
+        if (String(err).includes('Go program has already exited')) {
+            engineReady = false;
+            engineDead = true;
+        }
+        throw err;
+    }
 }
