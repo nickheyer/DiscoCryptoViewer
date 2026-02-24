@@ -5,6 +5,7 @@
   import Badge from '../shared/Badge.svelte';
   import ByteDisplay from '../shared/ByteDisplay.svelte';
   import DNView from '../shared/DNView.svelte';
+  import CertificateView from '../x509/CertificateView.svelte';
   import {
     cmsContentTypeName, oidName, signatureAlgorithmName, hexColonFormat,
     bigIntToDecimal,
@@ -36,6 +37,15 @@
     <Field label="Certificates" value={sd.certificates.length.toString()} />
     <Field label="Signers" value={sd.signerInfos.length.toString()} />
   </Section>
+
+  {#each sd.certificates as cert, i}
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid var(--dc-border)">
+      <div style="margin-bottom: 8px; font-size: 0.82em; color: var(--dc-text-dim); text-transform: uppercase; letter-spacing: 0.04em">
+        Certificate {i + 1} of {sd.certificates.length}
+      </div>
+      <CertificateView {cert} />
+    </div>
+  {/each}
 
   {#each sd.signerInfos as signer, i}
     <Section title="Signer {i + 1}" accent="blue" defaultOpen={false}>

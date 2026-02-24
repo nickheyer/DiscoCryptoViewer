@@ -57,12 +57,12 @@ export class CryptoEditorProvider implements vscode.CustomReadonlyEditorProvider
         };
 
         webview.onDidReceiveMessage((msg) => {
-            if (msg.type === 'retry') {
+            if (msg.type === 'ready') {
+                sendParse();
+            } else if (msg.type === 'retry') {
                 sendParse(msg);
             }
         });
-
-        sendParse();
     }
 
     private buildHtml(webview: vscode.Webview): string {

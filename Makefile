@@ -1,4 +1,4 @@
-.PHONY: build build-wasm build-webview build-ext proto proto-clean proto-lint proto-format gen deps clean help pub pack
+.PHONY: build build-wasm build-webview build-ext proto proto-clean gen deps clean help pub pack
 
 WEBVIEW_DIR := webview
 BUF_IMAGE := bufbuild/buf:latest
@@ -46,16 +46,6 @@ proto-clean:
 	rm -rf $(WEBVIEW_DIR)/src/lib/proto
 	@echo "Proto files cleaned!"
 
-proto-lint:
-	@echo "Linting proto files (using Docker)..."
-	$(BUF_RUN) lint
-	@echo "Proto linting complete!"
-
-proto-format:
-	@echo "Formatting proto files (using Docker)..."
-	$(BUF_RUN) format -w
-	@echo "Proto files formatted!"
-
 gen: proto-clean proto
 
 # Install all dependencies
@@ -78,10 +68,8 @@ help:
 	@echo "  make build-webview  - Build Svelte webview"
 	@echo "  make build-ext      - Build VS Code extension"
 	@echo "  make gen            - Clean and regenerate proto TypeScript types"
-	@echo "  make proto          - Generate TypeScript code from proto files (via Docker)"
+	@echo "  make proto          - Generate TypeScript code from proto files"
 	@echo "  make proto-clean    - Remove all generated proto files"
-	@echo "  make proto-lint     - Lint proto files (via Docker)"
-	@echo "  make proto-format   - Format proto files (via Docker)"
 	@echo "  make deps           - Install all dependencies"
 	@echo "  make clean          - Remove build artifacts"
 	@echo "  make help           - Show this help message"

@@ -14,6 +14,9 @@
   let needsPassphrase = $state(false);
   let passphrase = $state('');
 
+  // Signal to the extension that the webview script is loaded and ready.
+  vscode.postMessage({ type: 'ready' });
+
   window.addEventListener('message', (event) => {
     const msg = event.data;
     if (msg.type === 'parsed') {

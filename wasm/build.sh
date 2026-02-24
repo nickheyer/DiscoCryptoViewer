@@ -13,7 +13,9 @@ GOOS=js GOARCH=wasm go build -o "$OUT_DIR/engine.wasm" ./wasm/engine
 
 echo "==> Copying wasm_exec.js glue..."
 GOROOT=$(go env GOROOT)
-cp "$GOROOT/lib/wasm/wasm_exec.js" "$OUT_DIR/wasm_exec.js" || sudo cp "$GOROOT/lib/wasm/wasm_exec.js" "$OUT_DIR/wasm_exec.js"
+cp "$GOROOT/lib/wasm/wasm_exec.js" "$OUT_DIR/wasm_exec.js" \
+  || cp "/tmp/wasm_exec.js" "$OUT_DIR/wasm_exec.js" \
+  || sudo bash -c "cp $GOROOT/lib/wasm/wasm_exec.js $OUT_DIR/wasm_exec.js && chmod -R 777 $OUT_DIR && cp $OUT_DIR/wasm_exec.js /tmp/wasm_exec.js"
 
 echo "==> WASM build complete: $OUT_DIR"
 ls -lh "$OUT_DIR"
